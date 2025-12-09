@@ -1,13 +1,10 @@
 # src/train_tpse_ssl.py
 """
-B-Lite: Optimized Self-Supervised TPSE pretraining (stable)
-Improvements:
+B-Lite: Optimized Self-Supervised TPSE pretraining (stable but takes time)
  - LayerNorm in model (tpse_model.py) to stabilize scale
  - contrastive proj vectors normalized before NT-Xent
  - higher temperature (0.2)
  - recon MSE uses 'mean'
- - gradient clipping
- - guarded/optional order+mask tasks
 """
 
 import os
@@ -25,9 +22,6 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 from tpse_dataset import TPSEDataset, collate_fn
 from tpse_model import TPSEModel  # uses updated TPSEModel with LayerNorm
 
-# -----------------------
-# CONFIG
-# -----------------------
 SEED = 42
 BATCH_SIZE = 8
 EPOCHS = 3
@@ -53,9 +47,6 @@ random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-# -----------------------
-# Utilities
-# -----------------------
 def load_labels_dict(path):
     if not path.exists():
         return {}
@@ -78,9 +69,7 @@ def make_mask_from_lengths(lengths, max_len=None, device=None):
     rng = torch.arange(max_len, device=device).unsqueeze(0)
     return rng < lengths.unsqueeze(1)
 
-# -----------------------
 # Augmentations
-# -----------------------
 def augment_jitter_dropout_mask(seq, lengths, jitter_std=0.01, drop_rate=0.05, mask_rate=0.03):
     """
     seq: (B, T, D)
@@ -95,21 +84,17 @@ def augment_jitter_dropout_mask(seq, lengths, jitter_std=0.01, drop_rate=0.05, m
         # jitter (per timestep)
         noise = torch.randn((L, D), device=seq.device) * jitter_std
         seq[i, :L] = seq[i, :L] + noise
-        # time-dropout: drop whole timesteps
         if drop_rate > 0:
             num_drop = max(1, int(L * drop_rate))
             drop_idx = torch.randperm(L, device=seq.device)[:num_drop]
             seq[i, drop_idx] = 0.0
-        # feature mask (mask some features across valid timesteps)
+        # feature mask 
         if mask_rate > 0:
             num_mask = max(1, int(D * mask_rate))
             feat_idx = torch.randperm(D, device=seq.device)[:num_mask]
             seq[i, :L, feat_idx] = 0.0
     return seq
 
-# -----------------------
-# Sampling for order task
-# -----------------------
 def _ensure_2d_tensor(x):
     if torch.is_tensor(x):
         if x.ndim == 1:
@@ -151,9 +136,7 @@ def sample_pairs_for_batch(seq_batch, length_batch, seg_len=4, device="cpu"):
     order_labels = torch.tensor(labels, dtype=torch.long, device=device)
     return pair_tensor, order_labels
 
-# -----------------------
-# Contrastive loss (NT-Xent)
-# -----------------------
+# Contrastive loss (NT-Xent) like AA
 class NTXentLoss(nn.Module):
     def __init__(self, temperature=0.2):
         super().__init__()
@@ -172,9 +155,7 @@ class NTXentLoss(nn.Module):
         loss = (-positives + lse).mean()
         return loss
 
-# -----------------------
 # SSL Heads
-# -----------------------
 class SSLHeads(nn.Module):
     def __init__(self, hidden_dim, input_dim, proj_dim=128, order_hidden=64):
         super().__init__()
@@ -190,9 +171,6 @@ class SSLHeads(nn.Module):
         )
         self.recon = nn.Linear(hidden_dim, input_dim)
 
-# -----------------------
-# Dataloader builder
-# -----------------------
 def build_dataloader(batch_size):
     files = sorted(CACHE_DIR.glob("*.npz"))
     if len(files) == 0:
@@ -202,9 +180,7 @@ def build_dataloader(batch_size):
     ds = TPSEDataset(mrn_list, labels_dict, str(CACHE_DIR))
     return DataLoader(ds, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=0)
 
-# -----------------------
 # Training loop
-# -----------------------
 def train():
     loader = build_dataloader(BATCH_SIZE)
 
@@ -218,7 +194,6 @@ def train():
     input_dim = int(sample["seq"].shape[1])
 
     model = TPSEModel(input_dim=input_dim, hidden_dim=128, n_layers=2, n_heads=4, dropout=0.1)
-    # load existing keys; input_norm may be new so use strict=False
     if "model_state" in ckpt:
         model.load_state_dict(ckpt["model_state"], strict=False)
     else:
@@ -248,7 +223,7 @@ def train():
                 if B == 0:
                     continue
 
-                # --- contrastive two views ---
+                # contrastive two views 
                 v1 = augment_jitter_dropout_mask(seq, lengths, jitter_std=0.01, drop_rate=0.05, mask_rate=0.03)
                 v2 = augment_jitter_dropout_mask(seq, lengths, jitter_std=0.02, drop_rate=0.08, mask_rate=0.05)
 
@@ -267,7 +242,7 @@ def train():
 
                 loss_contrast = contrastive_loss(z1, z2)
 
-                # --- temporal order (occasionally) ---
+                #  temporal order (occasionally) 
                 loss_order = torch.tensor(0.0, device=DEVICE)
                 if (global_step % ORDER_EVERY_N) == 0:
                     pair, order_labels = sample_pairs_for_batch(seq, lengths, seg_len=4, device=DEVICE)
@@ -281,7 +256,7 @@ def train():
                         logits = heads.order_clf(concat)
                         loss_order = order_loss_fn(logits, order_labels)
 
-                # --- masked reconstruction (occasionally) ---
+                #  masked reconstruction (occasionally)
                 loss_mask = torch.tensor(0.0, device=DEVICE)
                 if (global_step % MASK_EVERY_N) == 0:
                     seq_masked = seq.clone()
@@ -340,3 +315,4 @@ def train():
 
 if __name__ == "__main__":
     train()
+
