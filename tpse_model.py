@@ -31,13 +31,14 @@ class TPSEModel(nn.Module):
 
     def forward(self, x, mask=None):
         # x: (B, T, D_in)
-        h = self.input_proj(x)            # (B, T, H)
-        h = self.input_norm(h)           # stabilize activations
+        h = self.input_proj(x)            
+        h = self.input_norm(h)           
         # src_key_padding_mask expects True where positions are padded
         src_key_padding_mask = None
         if mask is not None:
             # mask is (B, T) boolean True for valid; transformer wants True for padded positions
             src_key_padding_mask = ~mask
-        h2 = self.transformer(h, src_key_padding_mask=src_key_padding_mask)  # (B, T, H)
+        h2 = self.transformer(h, src_key_padding_mask=src_key_padding_mask)  
         out = self.out_proj(h2)  # (B, T, H)
         return out  # (B, T, H)
+
