@@ -3,18 +3,13 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader, WeightedRandomSampler, random_split
 
-# Paths to saved tensors
-X_FILE = r"C:\Users\dell\PycharmProjects\PythonProject1\subset\X_tensor.pt"
-Y_FILE = r"C:\Users\dell\PycharmProjects\PythonProject1\subset\y_tensor.pt"
 
-# Load tensors
+X_FILE = "X_tensor.pt"
+Y_FILE = "y_tensor.pt"
 X_tensor = torch.load(X_FILE)
 y_tensor = torch.load(Y_FILE)
 
-# Ensure y is float32
 y_tensor = y_tensor.float()
-
-# Dataset
 dataset = TensorDataset(X_tensor, y_tensor)
 
 # Train/Validation split
@@ -34,7 +29,7 @@ BATCH_SIZE = 64
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler)
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
-# Define a simple MLP model
+# Simple MLP model
 class PostOpMLP(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
@@ -84,6 +79,7 @@ for epoch in range(EPOCHS):
 
     print(f"Epoch {epoch+1}/{EPOCHS} - Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
 # Save the trained model
-MODEL_FILE = r"C:\Users\dell\PycharmProjects\PythonProject1\subset\postop_model.pt"
+MODEL_FILE = "postop_model.pt"
 torch.save(model.state_dict(), MODEL_FILE)
 print(f"Model saved to: {MODEL_FILE}")
+
