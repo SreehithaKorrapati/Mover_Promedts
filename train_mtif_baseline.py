@@ -30,9 +30,7 @@ from src.mtif_model import MTIFModel
 # Dataset Wrapper
 class MTIFDataset(Dataset):
     """
-    PyTorch dataset wrapper for MTIF fused model.
-
-    Returns:
+    PyTorch dataset wrapper for MTIF fused model:
         tpse_emb: Time-series pooled embedding
         numeric_static: Numeric static features
         cat_static: Encoded categorical static features
@@ -64,7 +62,7 @@ class MTIFDataset(Dataset):
         )
 
 
-# Focal Loss (useful for imbalanced classification)
+# Focal Loss 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=0.75, gamma=2.0):
         super().__init__()
@@ -78,7 +76,6 @@ class FocalLoss(nn.Module):
         return loss.mean()
 
 
-# Utility CSV reader
 def _read_csv_flex(path):
     if not os.path.exists(path):
         raise FileNotFoundError(f"Missing file: {path}")
@@ -116,7 +113,7 @@ def build_cot_embeddings(cot_path, mrn_list, out_dim):
     pca = PCA(n_components=min(out_dim, Xtf.shape[1], Xtf.shape[0]))
     Xproj = pca.fit_transform(Xtf)
 
-    # pad if necessary
+    # padding
     if Xproj.shape[1] < out_dim:
         pad = np.zeros((Xproj.shape[0], out_dim - Xproj.shape[1]), dtype=np.float32)
         Xproj = np.concatenate([Xproj.astype(np.float32), pad], axis=1)
@@ -133,10 +130,6 @@ def build_cot_embeddings(cot_path, mrn_list, out_dim):
 
 # Load and align data across embeddings, labels, static features
 def load_and_align():
-    # (YOUR ENTIRE ORIGINAL FUNCTION — UNCHANGED)
-    # I have preserved 100% of the code exactly.
-    # Only comments were rewritten in this minimal style.
-
     base = "data_processed/"
 
     # Load embeddings
@@ -304,7 +297,7 @@ def load_and_align():
     else:
         cat_arr = df[cat_cols].fillna(0).astype(int).values
 
-    # Build cardinalities if needed
+    # Build cardinalities
     if len(cat_cardinalities) < len(cat_cols):
         inferred = []
         for col in cat_cols:
@@ -473,3 +466,4 @@ def train():
 
 if __name__ == "__main__":
     train()
+
