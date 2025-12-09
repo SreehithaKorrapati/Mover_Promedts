@@ -34,7 +34,7 @@ sample_weights = y_train.map(weights)
 X_train_xgb = pd.get_dummies(X_train, columns=categorical_cols, drop_first=True)
 X_val_xgb = pd.get_dummies(X_val, columns=categorical_cols, drop_first=True)
 
-# Ensure same columns
+# check if they are same columns
 X_val_xgb = X_val_xgb.reindex(columns=X_train_xgb.columns, fill_value=0)
 
 xgb_model = xgb.XGBClassifier(
@@ -83,4 +83,5 @@ print("\n LightGBM Results ")
 print(classification_report(y_val, y_pred_lgb, digits=4))
 print("Confusion Matrix:\n", confusion_matrix(y_val, y_pred_lgb))
 print("AUROC:", roc_auc_score(y_val, y_proba_lgb))
+
 
