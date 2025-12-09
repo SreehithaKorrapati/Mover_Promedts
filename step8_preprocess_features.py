@@ -3,8 +3,7 @@ import torch
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
-# Paths
-FILE = r"C:\Users\dell\PycharmProjects\PythonProject1\subset\features_final_target.csv"
+FILE = "features_final_target.csv"
 
 # Load dataset
 df = pd.read_csv(FILE)
@@ -24,10 +23,7 @@ if datetime_cols:
     print("Dropped datetime columns from categorical:", datetime_cols)
     categorical_cols = [c for c in categorical_cols if c not in datetime_cols]
 
-# Fill NaNs in numeric columns
 X[numeric_cols] = X[numeric_cols].fillna(0)
-
-# Preprocessing: scale numeric, one-hot encode categorical
 preprocessor = ColumnTransformer(transformers=[
     ('num', StandardScaler(), numeric_cols),
     ('cat', OneHotEncoder(sparse_output=False, handle_unknown='ignore'), categorical_cols)
@@ -42,7 +38,7 @@ y_tensor = torch.tensor(y.values, dtype=torch.float32).unsqueeze(1)
 print("Processed feature shape:", X_tensor.shape)
 print("Target tensor shape:", y_tensor.shape)
 
-# Save tensors if needed
 torch.save(X_tensor, r"C:\Users\dell\PycharmProjects\PythonProject1\subset\X_tensor.pt")
 torch.save(y_tensor, r"C:\Users\dell\PycharmProjects\PythonProject1\subset\y_tensor.pt")
+
 
