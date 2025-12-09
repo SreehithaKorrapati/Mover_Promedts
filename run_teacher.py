@@ -7,13 +7,11 @@ import os
 import sys
 
 from src.mtif_model import MTIFModel
-# IMPORTANT: load_and_align is defined in your training script (train_mtif_baseline.py)
-# that function should return (X_emb, num_arr, cat_arr, y, cat_cardinalities, mrn_list)
 from src.train_mtif_baseline import load_and_align
 
 
 def run_teacher():
-    print("\n=== Step 1: Loading aligned MTIF dataset ===")
+    print("\n Loading aligned MTIF dataset")
     try:
         # call without keyword args — unpack the 6 returned items
         X, num, cat, y, cat_cardinalities, mrn_list = load_and_align()
@@ -35,7 +33,6 @@ def run_teacher():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"\nUsing device: {device}")
 
-    # Build model (must match architecture used when saving best_mtif.pt)
     model = MTIFModel(
         tpse_dim=X.shape[1],
         num_static_num=num.shape[1],
@@ -47,10 +44,10 @@ def run_teacher():
     checkpoint_path = "best_mtif.pt"
     if not os.path.exists(checkpoint_path):
         print(f"\nERROR: Teacher checkpoint not found at: {checkpoint_path}")
-        print("Make sure you saved a model at that path (train runs should create it).")
+        print("saved the model (train runs should create it).")
         return
 
-    print("\n=== Step 2: Loading teacher model ===")
+    print("\n Loading teacher model")
     try:
         state = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(state)
@@ -61,8 +58,8 @@ def run_teacher():
 
     model.eval()
 
-    # Convert to tensors and run inference
-    print("\n=== Step 3: Predicting teacher probabilities ===")
+    # Convert to tensors 
+    print("\n Predicting teacher probabilities")
     try:
         X_t = torch.tensor(X, dtype=torch.float32).to(device)
         num_t = torch.tensor(num, dtype=torch.float32).to(device)
@@ -77,7 +74,7 @@ def run_teacher():
 
     print("Teacher prediction complete. Number of predictions:", len(probs))
 
-    # Write JSONL with MRN and teacher_prob
+    # Write JSONL 
     out_path = os.path.join("data_processed", "mtif_dataset", "teacher_cot.jsonl")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
@@ -92,8 +89,9 @@ def run_teacher():
         print("ERROR writing teacher CoT file:", e)
         return
 
-    print("\nAll done.\n")
+    print("\n successful.\n")
 
 
 if __name__ == "__main__":
     run_teacher()
+
