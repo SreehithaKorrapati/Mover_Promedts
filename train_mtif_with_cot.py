@@ -8,24 +8,13 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, precision_recall_fscore_support, confusion_matrix
-
-# import your model and the loader you've been using
 from src.mtif_model import MTIFModel
 from src.train_mtif_baseline import load_and_align
 
-# -------------------------
-# Helpers
-# -------------------------
 def compute_metrics(y_true, y_prob, threshold=0.5):
-    """
-    Compute classification and medical metrics robustly.
-    y_true: numpy array (N,)
-    y_prob: numpy array (N,)
-    """
     y_true = np.asarray(y_true)
     y_prob = np.asarray(y_prob)
 
-    # AUC (may fail if only one class present)
     try:
         auc = float(roc_auc_score(y_true, y_prob))
     except Exception:
@@ -33,15 +22,11 @@ def compute_metrics(y_true, y_prob, threshold=0.5):
 
     # Binary predictions
     y_pred = (y_prob >= threshold).astype(int)
-
-    # Precision, recall, f1 (binary). zero_division=0 to avoid exceptions.
     prec, rec, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="binary", zero_division=0)
 
-    # Confusion matrix in a safe way
     try:
         tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
     except Exception:
-        # If confusion_matrix can't return 4 values (e.g. only one class present)
         tn = fp = fn = tp = 0
         # Try robust computation
         for yt, yp in zip(y_true, y_pred):
@@ -53,8 +38,7 @@ def compute_metrics(y_true, y_prob, threshold=0.5):
                 fn += 1
             elif yt == 1 and yp == 1:
                 tp += 1
-
-    # Compute clinical metrics (safe division)
+                
     def safe_div(a, b):
         return float(a) / float(b) if b != 0 else 0.0
 
@@ -128,9 +112,7 @@ class SimpleMTIFDataset(Dataset):
         return self.X[idx], self.num[idx], self.cat[idx], self.y[idx], self.mrns[idx]
 
 
-# -------------------------
-# Training function
-# -------------------------
+# Training 
 def train_with_cot(
     teacher_cot_path="data_processed/mtif_dataset/teacher_cot.jsonl",
     out_model="best_mtif_with_cot.pt",
@@ -146,7 +128,7 @@ def train_with_cot(
     metrics_csv="train_metrics_with_cot.csv"
 ):
     """
-    Train the MTIF model with optional CoT probability distillation.
+    Train the MTIF model with CoT probability distillation.
 
     - Splits data into train/val
     - Uses WeightedRandomSampler to balance classes in training
@@ -158,12 +140,11 @@ def train_with_cot(
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    print("=== Loading aligned data ===")
+    print(" Loading aligned data ")
     X, num, cat, y, cat_cardinalities, mrns = load_and_align()
     n = len(y)
     print(f"Loaded dataset rows: {n}")
 
-    # Load teacher probs if requested
     if use_distill:
         print("Loading teacher CoT from:", teacher_cot_path)
         teacher_map = load_teacher_probs(teacher_cot_path)
@@ -174,15 +155,13 @@ def train_with_cot(
     else:
         teacher_probs = np.full((n,), np.nan, dtype=np.float32)
 
-    # Split train/val by stratified sampling
     train_idx, val_idx = train_test_split(np.arange(n), test_size=val_frac, stratify=y, random_state=seed)
     print(f"Train rows: {len(train_idx)} | Val rows: {len(val_idx)}")
 
-    # Build datasets
     train_ds = SimpleMTIFDataset(X[train_idx], num[train_idx], cat[train_idx], y[train_idx], [mrns[i] for i in train_idx])
     val_ds = SimpleMTIFDataset(X[val_idx], num[val_idx], cat[val_idx], y[val_idx], [mrns[i] for i in val_idx])
 
-    # Weighted sampler for class imbalance (train only)
+    # Weighted sampler for class imbalance 
     class_counts = np.bincount(y[train_idx].astype(int), minlength=2)
     class_counts = np.where(class_counts == 0, 1, class_counts)
     weights_per_class = 1.0 / class_counts
@@ -210,7 +189,7 @@ def train_with_cot(
     best_auc = -1.0
     metrics_history = []
 
-    print("\n=== Training ===")
+    print("\nTraining")
     for epoch in range(1, epochs + 1):
         model.train()
         running_loss = 0.0
@@ -227,11 +206,9 @@ def train_with_cot(
             if logits.dim() > 1:
                 logits = logits.view(-1)
             probs = torch.sigmoid(logits)
-
-            # supervised loss
             loss_ce = bce_with_logits(logits, yb)
 
-            # distillation loss only for samples that have teacher probs
+            # distillation loss 
             loss_kd = torch.tensor(0.0, device=device)
             if use_distill:
                 # find teacher probs for this batch using mrn strings
@@ -296,13 +273,11 @@ def train_with_cot(
             f"PPV={metrics['ppv']:.4f} | NPV={metrics['npv']:.4f}"
         )
 
-        # save best model by AUC
         if not np.isnan(metrics["auc"]) and metrics["auc"] > best_auc:
             best_auc = metrics["auc"]
             torch.save(model.state_dict(), out_model)
             print(f"  NEW BEST MODEL SAVED -> {out_model} (AUC={best_auc:.4f})")
 
-    # Save metrics history to CSV
     df_metrics = pd.DataFrame(metrics_history)
     df_metrics.to_csv(metrics_csv, index=False)
     print(f"Training complete. Best AUC: {best_auc:.6f}")
@@ -311,12 +286,8 @@ def train_with_cot(
     return df_metrics
 
 
-# -------------------------
-# CLI entry
-# -------------------------
+
 if __name__ == "__main__":
-    # Example: python -m src.train_mtif_with_cot
-    # You can edit the flags here or call train_with_cot(...) from another script.
     train_with_cot(
         teacher_cot_path="data_processed/mtif_dataset/teacher_cot.jsonl",
         out_model="best_mtif_with_cot.pt",
@@ -331,3 +302,4 @@ if __name__ == "__main__":
         seed=42,
         metrics_csv="train_metrics_with_cot.csv"
     )
+
