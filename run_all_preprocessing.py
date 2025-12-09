@@ -19,4 +19,5 @@ for step in steps:
     if r.returncode != 0:
         print(f"Step {step} exited with code {r.returncode}. Stopping.")
         break
-print("Preprocessing run complete (or stopped on error). Check data_processed/intermediate and final for outputs and diagnostics.")
+print("Preprocessing run completed")
+
