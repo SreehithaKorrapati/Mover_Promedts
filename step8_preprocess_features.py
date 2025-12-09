@@ -38,7 +38,8 @@ y_tensor = torch.tensor(y.values, dtype=torch.float32).unsqueeze(1)
 print("Processed feature shape:", X_tensor.shape)
 print("Target tensor shape:", y_tensor.shape)
 
-torch.save(X_tensor, r"C:\Users\dell\PycharmProjects\PythonProject1\subset\X_tensor.pt")
-torch.save(y_tensor, r"C:\Users\dell\PycharmProjects\PythonProject1\subset\y_tensor.pt")
+torch.save(X_tensor, "X_tensor.pt")
+torch.save(y_tensor, "y_tensor.pt")
+
 
 
