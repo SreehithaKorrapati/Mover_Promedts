@@ -2,20 +2,16 @@ import torch
 from sklearn.metrics import classification_report, roc_auc_score, confusion_matrix
 from torch.utils.data import DataLoader, TensorDataset
 
-# Paths to your processed tensors (if not already loaded)
+
 X_FILE = "X_tensor.pt"
 Y_FILE = "y_tensor.pt"
-
-# Load tensors
 X_tensor = torch.load(X_FILE)
 y_tensor = torch.load(Y_FILE)
 
-# Dataset & DataLoader (no sampling needed for evaluation)
+# Dataset & DataLoader 
 dataset = TensorDataset(X_tensor, y_tensor)
 val_loader = DataLoader(dataset, batch_size=64, shuffle=False)
 
-# Load your trained model
-# Make sure this matches the class you trained
 class PostOpMLP(torch.nn.Module):
     def __init__(self, input_dim):
         super().__init__()
@@ -37,7 +33,6 @@ model = PostOpMLP(X_tensor.shape[1])
 model.load_state_dict(torch.load("postop_model.pt"))  
 model.eval()
 
-# Collect predictions and true labels
 all_preds = []
 all_labels = []
 
@@ -64,4 +59,5 @@ try:
     print(f"AUROC: {auroc:.4f}")
 except ValueError:
     print("AUROC cannot be computed (maybe only one class present).")
+
 
