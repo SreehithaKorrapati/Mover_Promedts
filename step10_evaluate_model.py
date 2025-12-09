@@ -3,8 +3,8 @@ from sklearn.metrics import classification_report, roc_auc_score, confusion_matr
 from torch.utils.data import DataLoader, TensorDataset
 
 # Paths to your processed tensors (if not already loaded)
-X_FILE = r"C:\Users\dell\PycharmProjects\PythonProject1\subset\X_tensor.pt"
-Y_FILE = r"C:\Users\dell\PycharmProjects\PythonProject1\subset\y_tensor.pt"
+X_FILE = "X_tensor.pt"
+Y_FILE = "y_tensor.pt"
 
 # Load tensors
 X_tensor = torch.load(X_FILE)
@@ -34,7 +34,7 @@ class PostOpMLP(torch.nn.Module):
         return self.model(x)
 
 model = PostOpMLP(X_tensor.shape[1])
-model.load_state_dict(torch.load(r"C:\Users\dell\PycharmProjects\PythonProject1\subset\postop_model.pt"))  # adjust path if saved
+model.load_state_dict(torch.load("postop_model.pt"))  
 model.eval()
 
 # Collect predictions and true labels
@@ -50,15 +50,11 @@ with torch.no_grad():
 all_preds = torch.cat(all_preds).numpy()
 all_labels = torch.cat(all_labels).numpy()
 
-# Apply threshold for classification
 threshold = 0.5
 y_pred = (all_preds >= threshold).astype(int)
 
-# Classification report
 print("Classification Report:")
 print(classification_report(all_labels, y_pred, digits=4))
-
-# Confusion matrix
 print("Confusion Matrix:")
 print(confusion_matrix(all_labels, y_pred))
 
@@ -68,3 +64,4 @@ try:
     print(f"AUROC: {auroc:.4f}")
 except ValueError:
     print("AUROC cannot be computed (maybe only one class present).")
+
